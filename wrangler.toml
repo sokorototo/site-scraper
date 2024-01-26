@@ -1,0 +1,7 @@
+name = "site-scraper"
+workers_dev = true
+main = "build/worker/shim.mjs"
+compatibility_date = "2023-05-14"
+
+[build]
+command = "worker-build --release"

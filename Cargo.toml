@@ -1,0 +1,27 @@
+[package]
+name = "site-scraper"
+version = "0.2.0"
+authors = ["Newton Toto <nyachiengatoto@gmail.com>"]
+description = "A simple Web Scraping service, developed and deployed on a Cloudfare Worker"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+worker = "0.0.18"
+console_error_panic_hook = "0.1.7"
+scraper = "0.18.1"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.66"
+wildmatch = "2.1.1"
+
+# Manually included to force a union with the getrandom used by scrapper (allowing it to work in wasm)
+getrandom = { version = "*", features = ["js"] }
+futures = { version = "0.3.30", default-features = false, features = [
+	"async-await",
+	"std",
+] }
+
+[profile.release]
+opt-level = 3
