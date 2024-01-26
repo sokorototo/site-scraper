@@ -60,7 +60,7 @@ fn resolve_selectors<'name, 'result>(
 pub async fn main(req: Request, env: Env, _: worker::Context) -> Result<Response> {
 	// Environment bindings like KV Stores, Durable Objects, Secrets, and Variables.
 	Router::new()
-		.get("/", |_, _| Response::ok(format!("{} v{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))))
+		.get("/", |_, _| Response::ok(concat!(env!("CARGO_PKG_NAME"), " v", env!("CARGO_PKG_VERSION"))))
 		.post_async("/scrape", |mut req, _| async move {
 			// Get more helpful error messages written to the console in the case of a panic.
 			console_error_panic_hook::set_once();
