@@ -3,8 +3,9 @@ use std::{
 	collections::{HashMap, HashSet},
 };
 
+use regex_lite::Regex;
 use scraper::{Html, Selector};
-use wildmatch::WildMatch;
+use url::Position;
 use worker::*;
 
 #[derive(Debug, serde::Deserialize)]
@@ -88,7 +89,10 @@ pub async fn main(req: Request, env: Env, _: worker::Context) -> Result<Response
 			let mut pending_sites = HashSet::new();
 			pending_sites.insert(url);
 
-			let links_wildcard = follow_links.map(|s| WildMatch::new(&s));
+			let links_regex = match follow_links.map(|s| Regex::new(&s)) {
+				Some(res) => Some(res.map_err(|e| e.to_string())?),
+				None => None,
+			};
 			let links_selector = Selector::parse("a[href]").unwrap();
 
 			let mut _temp = HashSet::new();
@@ -106,20 +110,25 @@ pub async fn main(req: Request, env: Env, _: worker::Context) -> Result<Response
 				for site in futures::future::join_all(queue).await {
 					let (site_data, site) = site?;
 					let parsed = Html::parse_document(&site_data);
+					let homepage = &Url::parse(&site).unwrap()[..Position::AfterPort];
+					let homepage = Url::parse(homepage).unwrap();
 
 					// Explore and Enqueue links
 					let new_links = parsed
 						.select(&links_selector)
 						.filter_map(|element| element.value().attr("href"))
-						.filter(|link| links_wildcard.as_ref().map_or(false, |w| w.matches(link)))
-						.map(|link| {
-							if link.starts_with('/') {
-								let url = Url::parse(&format!("{}{}", site, link)).unwrap();
-								url.to_string()
-							} else {
-								link.to_string()
-							}
+						.filter_map(|link| match link.get(..1) {
+							Some(c) => match c {
+								"/" => {
+									let formatted = homepage.join(link).unwrap();
+									Some(formatted.to_string())
+								}
+								"#" => None,
+								_ => Some(link.to_owned()),
+							},
+							None => None,
 						})
+						.filter(|link| links_regex.as_ref().map_or(false, |w| w.is_match(link)))
 						.filter(|link| !visited.contains(&Cow::Borrowed(link.as_str())));
 
 					_temp.extend(new_links);
