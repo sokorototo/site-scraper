@@ -42,15 +42,15 @@ fn resolve_selectors<'name, 'result>(
 			for attribute in attributes.iter() {
 				let attribute_set = selector_group.get_mut(attribute.as_str()).unwrap();
 				match attribute.as_str() {
-					"TextContent" => {
+					"#TextContent" => {
 						let text = element.text().collect::<String>();
 						attribute_set.insert(Cow::Owned(text));
 					}
-					"HtmlContent" => {
+					"#HtmlContent" => {
 						let html = element.html();
 						attribute_set.insert(Cow::Owned(html));
 					}
-					"InnerHtml" => {
+					"#InnerHtml" => {
 						let inner_html = element.inner_html();
 						attribute_set.insert(Cow::Owned(inner_html));
 					}
