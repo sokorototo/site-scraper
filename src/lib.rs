@@ -46,6 +46,14 @@ fn resolve_selectors<'name, 'result>(
 						let text = element.text().collect::<String>();
 						attribute_set.insert(Cow::Owned(text));
 					}
+					"HtmlContent" => {
+						let html = element.html();
+						attribute_set.insert(Cow::Owned(html));
+					}
+					"InnerHtml" => {
+						let inner_html = element.inner_html();
+						attribute_set.insert(Cow::Owned(inner_html));
+					}
 					attribute => {
 						if let Some(value) = element.value().attr(attribute) {
 							attribute_set.insert(Cow::Borrowed(value));
