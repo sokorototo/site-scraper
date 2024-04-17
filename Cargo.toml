@@ -9,11 +9,11 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-worker = "0.0.24"
+worker = "0.1.0"
 console_error_panic_hook = "0.1.7"
 scraper = "0.19.0"
-serde = { version = "1.0.197", features = ["derive"] }
-serde_json = "1.0.115"
+serde = { version = "1.0.198", features = ["derive"] }
+serde_json = "1.0.116"
 regex-lite = "0.1.5"
 
 # Manually included to force a union with the getrandom used by scrapper (allowing it to work in wasm)
