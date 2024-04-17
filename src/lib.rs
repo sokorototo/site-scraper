@@ -3,6 +3,7 @@ use std::{
 	collections::{HashMap, HashSet},
 };
 
+use itertools::Itertools;
 use regex_lite::Regex;
 use scraper::{Html, Selector};
 use url::Position;
@@ -65,6 +66,12 @@ fn resolve_selectors<'name, 'result>(
 	}
 }
 
+fn normalize_url(url: &str) -> Option<String> {
+	let url = Url::parse(url).ok()?;
+	let homepage = &url[..Position::BeforeQuery];
+	Url::parse(homepage).ok().map(|u| u.as_str().to_owned())
+}
+
 #[event(fetch)]
 pub async fn main(req: Request, env: Env, _: worker::Context) -> Result<Response> {
 	console_error_panic_hook::set_once();
@@ -94,7 +101,7 @@ pub async fn main(req: Request, env: Env, _: worker::Context) -> Result<Response
 
 			// Queue tasks
 			let mut pending_sites = HashSet::new();
-			pending_sites.insert(url);
+			pending_sites.insert(normalize_url(url.as_str()).ok_or("Invalid Url Provided")?);
 
 			let links_regex = match follow_links.map(|s| Regex::new(&s)) {
 				Some(res) => Some(res.map_err(|e| e.to_string())?),
@@ -102,51 +109,53 @@ pub async fn main(req: Request, env: Env, _: worker::Context) -> Result<Response
 			};
 			let links_selector = Selector::parse("a[href]").unwrap();
 
-			let mut _temp = HashSet::new();
 			let mut visited = HashSet::<Cow<str>>::new();
 			let mut current_depth = 0u32;
 			let mut document_cache = vec![];
 
 			// Process tasks
 			loop {
+				let mut _temp = HashSet::new();
 				if pending_sites.is_empty() || current_depth > max_depth.unwrap_or(0) {
 					break;
 				}
 
-				let queue = pending_sites.drain().map(|site| load_site(site));
-				for site in futures::future::join_all(queue).await {
-					let (site_data, site) = site?;
-					let parsed = Html::parse_document(&site_data);
-					let homepage = &Url::parse(&site).unwrap()[..Position::AfterPort];
-					let homepage = Url::parse(homepage).unwrap();
+				let queue = pending_sites.into_iter().map(|site| load_site(site)).chunks(40);
+				for chunk in queue.into_iter() {
+					for site in futures::future::join_all(chunk).await {
+						let (site_data, site) = site?;
+						let parsed = Html::parse_document(&site_data);
+						let homepage = Url::parse(&site).unwrap();
 
-					// Explore and Enqueue links
-					let new_links = parsed
-						.select(&links_selector)
-						.filter_map(|element| element.value().attr("href"))
-						.filter_map(|link| match link.get(..1) {
-							Some(c) => match c {
-								"/" => {
-									let formatted = homepage.join(link).unwrap();
-									Some(formatted.to_string())
-								}
-								"#" => None,
-								_ => Some(link.to_owned()),
-							},
-							None => None,
-						})
-						.filter(|link| links_regex.as_ref().map_or(false, |w| w.is_match(link)))
-						.filter(|link| !visited.contains(&Cow::Borrowed(link.as_str())));
+						// Explore and Enqueue links
+						let new_links = parsed
+							.select(&links_selector)
+							.filter_map(|element| element.value().attr("href"))
+							.filter_map(|link| match link.get(..1) {
+								Some(c) => match c {
+									"/" => {
+										let formatted = homepage.join(link).unwrap();
+										Some(formatted.to_string())
+									}
+									"#" => None,
+									_ => Some(link.to_owned()),
+								},
+								None => None,
+							})
+							.filter_map(|l| normalize_url(&l))
+							.filter(|link| links_regex.as_ref().map_or(false, |w| w.is_match(link)))
+							.filter(|link| !visited.contains(&Cow::Borrowed(link.as_str())));
 
-					_temp.extend(new_links);
+						_temp.extend(new_links);
 
-					// Cache parsed documents for later processing
-					document_cache.push(parsed);
-					visited.insert(Cow::Owned(site));
+						// Cache parsed documents for later processing
+						document_cache.push(parsed);
+						visited.insert(Cow::Owned(site));
+					}
 				}
 
 				// drain temp into pending_sites
-				pending_sites.extend(_temp.drain());
+				pending_sites = _temp;
 				current_depth += 1;
 			}
 

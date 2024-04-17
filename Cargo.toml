@@ -23,6 +23,7 @@ futures = { version = "0.3.30", default-features = false, features = [
 	"std",
 ] }
 url = "2.5.0"
+itertools = "0.12.1"
 
 [profile.release]
 opt-level = 3
