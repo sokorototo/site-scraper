@@ -55,6 +55,11 @@ fn resolve_selectors<'name, 'result>(
 						let inner_html = element.inner_html();
 						attribute_set.insert(Cow::Owned(inner_html));
 					}
+					"#Html2Text" => {
+						let inner_html = element.inner_html();
+						let text = nanohtml2text::html2text(&inner_html);
+						attribute_set.insert(Cow::Owned(text));
+					}
 					attribute => {
 						if let Some(value) = element.value().attr(attribute) {
 							attribute_set.insert(Cow::Borrowed(value));
@@ -120,7 +125,7 @@ pub async fn main(req: Request, env: Env, _: worker::Context) -> Result<Response
 					break;
 				}
 
-				let queue = pending_sites.into_iter().map(|site| load_site(site)).chunks(40);
+				let queue = pending_sites.into_iter().map(|site| load_site(site)).chunks(6);
 				for chunk in queue.into_iter() {
 					for site in futures::future::join_all(chunk).await {
 						let (site_data, site) = site?;
