@@ -44,25 +44,35 @@ fn resolve_selectors<'name, 'result>(
 				let attribute_set = selector_group.get_mut(attribute.as_str()).unwrap();
 				match attribute.as_str() {
 					"#TextContent" => {
-						let text = element.text().collect::<String>();
-						attribute_set.insert(Cow::Owned(text));
+						let text = element.text().collect::<String>().trim().to_owned();
+						if !text.is_empty() {
+							attribute_set.insert(Cow::Owned(text));
+						}
 					}
 					"#HtmlContent" => {
-						let html = element.html();
-						attribute_set.insert(Cow::Owned(html));
+						let html = element.html().trim().to_owned();
+						if !html.is_empty() {
+							attribute_set.insert(Cow::Owned(html));
+						}
 					}
 					"#InnerHtml" => {
-						let inner_html = element.inner_html();
-						attribute_set.insert(Cow::Owned(inner_html));
+						let inner_html = element.inner_html().trim().to_owned();
+						if !inner_html.is_empty() {
+							attribute_set.insert(Cow::Owned(inner_html));
+						}
 					}
 					"#Html2Text" => {
 						let inner_html = element.inner_html();
 						let text = nanohtml2text::html2text(&inner_html);
-						attribute_set.insert(Cow::Owned(text));
+						if !text.is_empty() {
+							attribute_set.insert(Cow::Owned(text));
+						}
 					}
 					attribute => {
 						if let Some(value) = element.value().attr(attribute) {
-							attribute_set.insert(Cow::Borrowed(value));
+							if !value.is_empty() {
+								attribute_set.insert(Cow::Borrowed(value));
+							}
 						}
 					}
 				}
